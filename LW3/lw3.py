@@ -99,7 +99,7 @@ scores = grid_search.cv_results_['mean_test_score']
 
 plt.plot(k_values, scores, marker='o')
 plt.xlabel('Кількість сусідів (k)')
-plt.ylabel('Cross-Validation Accuracy')
+plt.ylabel('Точність перехресної перевірки')
 plt.title('Accuracy vs. Кількість сусідів (k) для kNN')
 plt.grid()
 plt.show()
