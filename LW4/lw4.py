@@ -186,6 +186,17 @@ output_path = '/Machine Learning Course/ML_Fall2024/LW4/Results/compact_decision
 graph.write_png(output_path)
 print(f"Графічне представлення компактного дерева збережено як '{output_path}'.")
 
+def plot_feature_importance(model, X):
+    feature_importances = model.feature_importances_
+    features = X.columns
+    importance_df = pd.DataFrame({'Feature': features, 'Importance': feature_importances})
+    importance_df.sort_values(by='Importance', ascending=False, inplace=True)
+    sns.barplot(data=importance_df, x='Importance', y='Feature', palette='viridis')
+    plt.title('Feature Importance')
+    plt.savefig('/Machine Learning Course/ML_Fall2024/LW4/Results/feature_importances.png')
+    plt.close()
+
+plot_feature_importance(classifier, X)
 
 
 def plot_validation_curve(param_range, train_scores, test_scores, param_name, file_name):
