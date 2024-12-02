@@ -139,6 +139,7 @@ def plot_validation_curve(param_range, train_scores, test_scores, param_name, ti
     plt.grid()
     plt.savefig('ML_Fall2024\LW5\Results\Training_score.png')
     plt.close()
+    plt.grid()
     plt.savefig('ML_Fall2024\LW5\Results\Cross-validation_score.png')
     plt.close()
 
