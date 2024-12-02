@@ -85,7 +85,7 @@ print(f'Accuracy: {score:.2f}')
 print(f'F1 Score: {f1:.2f}')
 print(f'Precision: {precision:.2f}')
 
-print("\nClassification Report:")
+print("\nClassification Report1:")
 print(classification_report(y_test, y_pred, target_names=['no', 'yes']))
 
 print("\nConfusion Matrix:")
@@ -120,7 +120,6 @@ train_scores_lr, test_scores_lr = validation_curve(
     cv=5
 )
 
-
 def plot_validation_curve(param_range, train_scores, test_scores, param_name, title):
     train_mean = np.mean(train_scores, axis=1)
     train_std = np.std(train_scores, axis=1)
@@ -134,14 +133,10 @@ def plot_validation_curve(param_range, train_scores, test_scores, param_name, ti
     plt.fill_between(param_range, test_mean - test_std, test_mean + test_std, alpha=0.2, color="orange")
     plt.title(title)
     plt.xlabel(param_name)
-    plt.ylabel("F1_Score")
+    plt.ylabel("Accuracy")
     plt.legend(loc="best")
     plt.grid()
-    plt.savefig('ML_Fall2024\LW5\Results\Training_score.png')
-    plt.close()
-    plt.grid()
-    plt.savefig('ML_Fall2024\LW5\Results\Cross-validation_score.png')
-    plt.close()
+    plt.show()
 
 plot_validation_curve(n_estimators_range, train_scores_n, test_scores_n, "n_estimators", "Validation Curve for AdaBoost (n_estimators)")
 plot_validation_curve(learning_rate_range, train_scores_lr, test_scores_lr, "learning_rate", "Validation Curve for AdaBoost (learning_rate)")
@@ -154,8 +149,9 @@ final_model = AdaBoostClassifier(estimator=DecisionTreeClassifier(max_depth=1),
                                  random_state=42)
 final_model.fit(X_train, y_train)
 y_test_pred = final_model.predict(X_test)
+print("\naaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
 print(classification_report(y_test, y_test_pred, target_names=['no', 'yes']))
-
+print("\naaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
 print("ROC-AUC:", roc_auc_score(y_test, final_model.predict_proba(X_test)[:, 1]))
 
 
@@ -241,9 +237,11 @@ final_model.fit(X_train, y_train)
 
 y_pred = final_model.predict(X_test)
 
-
-print("\nClassification Report:")
+print("\nbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
+print("\nClassification Report2:")
+print("\nbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
 print(classification_report(y_test, y_pred, target_names=['no', 'yes']))
+print("ROC-AUC:", roc_auc_score(y_test, final_model.predict_proba(X_test)[:, 1]))
 
 print("\nConfusion Matrix:")
 sns.heatmap(confusion_matrix(y_test, y_pred), annot=True, fmt='d', cmap='Blues', xticklabels=['no', 'yes'], yticklabels=['no', 'yes'])
