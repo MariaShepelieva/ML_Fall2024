@@ -6,69 +6,72 @@ from sklearn.model_selection import train_test_split, validation_curve
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.tree import plot_tree, DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier, GradientBoostingClassifier
+from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import accuracy_score, f1_score, precision_score, classification_report, confusion_matrix, roc_auc_score
 import os
-
-# Directory Setup
-results_dir = r'D:\Machine Learning Course\ML_Fall2024\LW5\Results'
-os.makedirs(results_dir, exist_ok=True)
-
-# Load dataset
+print(os.getcwd())  # To check the current working directory
 df = pd.read_csv('./bank--additional-full.csv', sep=";", na_values='unknown')
 
-# Initial Data Analysis
-print("\u041f\u0435\u0440\u0448\u0456 \u0440\u044f\u0434\u043a\u0438 \u0434\u0430\u043d\u0438\u0445:")
+
+print("Перші рядки даних:")
 print(df.head())
-print("\n\u0406\u043d\u0444\u043e\u0440\u043c\u0430\u0446\u0456\u044f \u043f\u0440\u043e \u0434\u0430\u0442\u0430\u0444\u0440\u0435\u0439\u043c:")
+print("\nІнформація про датафрейм:")
 print(df.info())
-print("\n\u041a\u0456\u043b\u044c\u043a\u0456\u0441\u0442\u044c \u043f\u0440\u043e\u043f\u0443\u0449\u0435\u043d\u0438\u0445 \u0437\u043d\u0430\u0447\u0435\u043d\u044c \u0443 \u043a\u043e\u0436\u043d\u043e\u043c\u0443 \u0441\u0442\u043e\u0432\u043f\u0446\u0456:")
+print("\nКількість пропущених значень у кожному стовпці:")
 print(df.isna().sum())
 
-# Fill missing values
-na_columns = ['job', 'marital', 'education', 'default', 'housing', 'loan']
+na_columns = ['job','marital','education','default','housing','loan']
 for col in na_columns:
     df[col] = df[col].fillna(df[col].mode().values[0])
 
-print("\n\u041a\u0456\u043b\u044c\u043a\u0456\u0441\u0442\u044c \u043f\u0440\u043e\u043f\u0443\u0449\u0435\u043d\u0438\u0445 \u0437\u043d\u0430\u0447\u0435\u043d\u044c \u043f\u0456\u0441\u043b\u044f \u043e\u0431\u0440\u043e\u0431\u043a\u0438:")
+print("\nКількість пропущених значень після обробки:")
 print(df.isna().sum())
 
-# Remove outliers
+# Статистичний опис даних
+print("\nСтатистичний опис числових стовпців:")
+print(df.describe())
+
+
+
 q1 = df['age'].quantile(0.25)
 q3 = df['age'].quantile(0.75)
-iqr = q3 - q1
-df = df[(df['age'] > q1 - 1.5 * iqr) & (df['age'] < q3 + 1.5 * iqr)]
+iqr = q3-q1
+df = df[( df['age'] > q1 - 1.5 * iqr) & (df['age'] < q3+1.5 * iqr)]
+print(df)
 
-# Encode categorical variables
+
+
 label_encoder = LabelEncoder()
 df['y'] = label_encoder.fit_transform(df['y'])
-for column in ['job', 'marital', 'education', 'default', 'housing', 'loan', 'contact', 'month', 'day_of_week', 'poutcome']:
+for column in ['job', 'marital', 'education','default','housing','loan','contact','month','day_of_week','poutcome']:
     df[column] = label_encoder.fit_transform(df[column])
 
-# Split dataset
-X = df.drop('y', axis=1)
+print(df.describe(include='all'))
+
+X = df.drop('y', axis=1)  
 y = df['y']
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-# Scale features
 scaler = StandardScaler()
 X_train = scaler.fit_transform(X_train)
 X_test = scaler.transform(X_test)
 
-# Visualize Decision Tree
+# Візуалізація дерева рішень
 model = DecisionTreeClassifier(max_depth=3)
 model.fit(X_train, y_train)
 plt.figure(figsize=(12, 8))
 plot_tree(
     model,
-    feature_names=X.columns,
-    class_names=['no', 'yes'],
+    feature_names=df.drop('y', axis=1).columns,
+    class_names=['no', 'yes'],  # Відповідає закодованим значенням
     filled=True
 )
+results_dir = r'D:\Machine Learning Course\ML_Fall2024\LW5\Results'
+os.makedirs(results_dir, exist_ok=True)
 output_path = os.path.join(results_dir, 'Tree.png')
 plt.savefig(output_path)
 plt.close()
 
-# Model evaluation function
+
 def select_model(model, X_train, y_train, X_test, y_test):
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
@@ -77,24 +80,54 @@ def select_model(model, X_train, y_train, X_test, y_test):
     precision = precision_score(y_test, y_pred, average='weighted')
     return model, y_pred, score, f1, precision
 
-# Random Forest Classifier
-rfc = RandomForestClassifier(n_estimators=100, random_state=42)
+
+
+# Оцінка моделі RandomForestClassifier
+rfc = RandomForestClassifier(n_estimators=100, random_state=42)  # Більше дерев для кращої узагальненості
 model_rfc, y_pred, score, f1, precision = select_model(rfc, X_train, y_train, X_test, y_test)
 
 print(f'Accuracy: {score:.2f}')
 print(f'F1 Score: {f1:.2f}')
 print(f'Precision: {precision:.2f}')
 
-# Save confusion matrix
+print("\nClassification Report1:")
+print(classification_report(y_test, y_pred, target_names=['no', 'yes']))
+
+print("\nConfusion Matrix:")
 sns.heatmap(confusion_matrix(y_test, y_pred), annot=True, fmt='d', cmap='Blues', xticklabels=['no', 'yes'], yticklabels=['no', 'yes'])
+
 plt.xlabel("Predicted")
 plt.ylabel("Actual")
 plt.title("Confusion Matrix")
+results_dir = r'D:\Machine Learning Course\ML_Fall2024\LW5\Results'
+os.makedirs(results_dir, exist_ok=True)
 output_path = os.path.join(results_dir, 'Confusion-Matrix.png')
 plt.savefig(output_path)
 plt.close()
 
-# Validation Curves
+base_model = DecisionTreeClassifier(max_depth=3)
+
+n_estimators_range = [10, 50, 100, 200, 300, 500]
+learning_rate_range = [0.01, 0.1, 0.5, 1, 1.5, 2]
+
+train_scores_n, test_scores_n = validation_curve(
+    AdaBoostClassifier(estimator=base_model, learning_rate=1, algorithm='SAMME', random_state=42),
+    X_train, y_train,
+    param_name="n_estimators",
+    param_range=n_estimators_range,
+    scoring="f1",
+    cv=5
+)
+
+train_scores_lr, test_scores_lr = validation_curve(
+    AdaBoostClassifier(estimator=base_model, n_estimators=100, algorithm='SAMME', random_state=42),
+    X_train, y_train,
+    param_name="learning_rate",
+    param_range=learning_rate_range,
+    scoring="f1",
+    cv=5
+)
+
 def plot_validation_curve(param_range, train_scores, test_scores, param_name, title):
     train_mean = np.mean(train_scores, axis=1)
     train_std = np.std(train_scores, axis=1)
@@ -108,10 +141,29 @@ def plot_validation_curve(param_range, train_scores, test_scores, param_name, ti
     plt.fill_between(param_range, test_mean - test_std, test_mean + test_std, alpha=0.2, color="orange")
     plt.title(title)
     plt.xlabel(param_name)
-    plt.ylabel("F1-score")
+    plt.ylabel("Accuracy")
     plt.legend(loc="best")
     plt.grid()
     plt.show()
+
+plot_validation_curve(n_estimators_range, train_scores_n, test_scores_n, "n_estimators", "Validation Curve for AdaBoost (n_estimators)")
+plot_validation_curve(learning_rate_range, train_scores_lr, test_scores_lr, "learning_rate", "Validation Curve for AdaBoost (learning_rate)")
+
+''' Отримали графіки, які допомогли обрати найкращі значення для n_estimators: 200-300. learning_rate: 0.5.'''
+
+final_model = AdaBoostClassifier(estimator=DecisionTreeClassifier(max_depth=1), 
+                                 n_estimators=250, 
+                                 learning_rate=0.5, 
+                                 random_state=42)
+final_model.fit(X_train, y_train)
+y_test_pred = final_model.predict(X_test)
+print("\naaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+print(classification_report(y_test, y_test_pred, target_names=['no', 'yes']))
+print("\naaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+print("ROC-AUC:", roc_auc_score(y_test, final_model.predict_proba(X_test)[:, 1]))
+
+
+base_model = DecisionTreeClassifier(max_depth=1)  # Базова модель "неглибоке дерево рішень"
 
 n_estimators_range = [50, 100, 200, 300, 400]
 train_scores_n, test_scores_n = validation_curve(
@@ -119,18 +171,92 @@ train_scores_n, test_scores_n = validation_curve(
     X_train, y_train,
     param_name="n_estimators",
     param_range=n_estimators_range,
+    scoring="f1",  
+)
+
+plt.figure(figsize=(10, 6))
+plt.plot(n_estimators_range, np.mean(train_scores_n, axis=1), label="Training F1-score", color="blue", marker="o")
+plt.plot(n_estimators_range, np.mean(test_scores_n, axis=1), label="Validation F1-score", color="orange", marker="o")
+plt.fill_between(
+    n_estimators_range,
+    np.mean(train_scores_n, axis=1) - np.std(train_scores_n, axis=1),
+    np.mean(train_scores_n, axis=1) + np.std(train_scores_n, axis=1),
+    alpha=0.2, color="blue"
+)
+plt.fill_between(
+    n_estimators_range,
+    np.mean(test_scores_n, axis=1) - np.std(test_scores_n, axis=1),
+    np.mean(test_scores_n, axis=1) + np.std(test_scores_n, axis=1),
+    alpha=0.2, color="orange"
+)
+plt.title("Validation Curve for n_estimators")
+plt.xlabel("n_estimators")
+plt.ylabel("F1-score")
+plt.legend(loc="best")
+plt.grid()
+output_dir = 'ML_Fall2024/LW5/Results'
+os.makedirs(output_dir, exist_ok=True)
+plt.savefig(os.path.join(output_dir, 'Validation Curve for n_estimator.png'))
+plt.close()
+
+learning_rate_range = [0.01, 0.05, 0.1, 0.2, 0.3]
+train_scores_lr, test_scores_lr = validation_curve(
+    GradientBoostingClassifier(n_estimators=200, random_state=42),
+    X_train, y_train,
+    param_name="learning_rate",
+    param_range=learning_rate_range,
     scoring="f1",
     cv=5
 )
 
-plot_validation_curve(n_estimators_range, train_scores_n, test_scores_n, "n_estimators", "Validation Curve for GradientBoostingClassifier")
+plt.figure(figsize=(10, 6))
+plt.plot(learning_rate_range, np.mean(train_scores_lr, axis=1), label="Training F1-score", color="blue", marker="o")
+plt.plot(learning_rate_range, np.mean(test_scores_lr, axis=1), label="Validation F1-score", color="orange", marker="o")
+plt.fill_between(
+    learning_rate_range,
+    np.mean(train_scores_lr, axis=1) - np.std(train_scores_lr, axis=1),
+    np.mean(train_scores_lr, axis=1) + np.std(train_scores_lr, axis=1),
+    alpha=0.2, color="blue"
+)
+plt.fill_between(
+    learning_rate_range,
+    np.mean(test_scores_lr, axis=1) - np.std(test_scores_lr, axis=1),
+    np.mean(test_scores_lr, axis=1) + np.std(test_scores_lr, axis=1),
+    alpha=0.2, color="orange"
+)
+plt.title("Validation Curve for learning_rate")
+plt.xlabel("learning_rate")
+plt.ylabel("F1-score")
+plt.legend(loc="best")
+plt.grid()
+plt.savefig('ML_Fall2024\LW5\Results\Validation-Curve-for-learning_rate.png')
+plt.close()
 
-# Final Gradient Boosting Model
-final_model = GradientBoostingClassifier(n_estimators=200, learning_rate=0.1, max_depth=1, random_state=42)
+
+best_n_estimators = 200
+best_learning_rate = 0.1
+
+
+final_model = GradientBoostingClassifier(
+    n_estimators=best_n_estimators,
+    learning_rate=best_learning_rate,
+    max_depth=1, 
+    random_state=42
+)
 final_model.fit(X_train, y_train)
+
 y_pred = final_model.predict(X_test)
 
-print("\nClassification Report:")
+print("\nbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
+print("\nClassification Report2:")
+print("\nbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
 print(classification_report(y_test, y_pred, target_names=['no', 'yes']))
 print("ROC-AUC:", roc_auc_score(y_test, final_model.predict_proba(X_test)[:, 1]))
 
+print("\nConfusion Matrix:")
+sns.heatmap(confusion_matrix(y_test, y_pred), annot=True, fmt='d', cmap='Blues', xticklabels=['no', 'yes'], yticklabels=['no', 'yes'])
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
+plt.title("Confusion Matrix")
+plt.savefig('ML_Fall2024\LW5\Results\Confusion Matrix.png')
+plt.close()
