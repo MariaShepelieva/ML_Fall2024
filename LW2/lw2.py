@@ -6,9 +6,10 @@ from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.model_selection import train_test_split, GridSearchCV, validation_curve
 from sklearn.linear_model import LogisticRegression, RidgeClassifier, Lasso, ElasticNet
 from sklearn.metrics import f1_score, precision_score, recall_score, accuracy_score, roc_auc_score, confusion_matrix, mean_squared_error
+import os
 
-
-df = pd.read_csv('D:/Ml fall-2024/ml_Fall2024/LW2/bank--additional-full.csv', sep=';')
+print(os.getcwd())
+df = pd.read_csv('./bank--additional-full.csv', sep=';', na_values = 'unknown')
 
 print(f'Info about the dataframe:\n{df.info()}')
 print(f'First five rows of the dataframe:\n{df.head()}')
