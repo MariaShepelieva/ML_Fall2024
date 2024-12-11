@@ -8,8 +8,10 @@ from sklearn.tree import plot_tree, DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier, GradientBoostingClassifier
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import accuracy_score, f1_score, precision_score, classification_report, confusion_matrix, roc_auc_score
+import os
+print(os.getcwd())  # To check the current working directory
+df = pd.read_csv('./bank--additional-full.csv', sep=";", na_values='unknown')
 
-df = pd.read_csv('ML_Fall2024/LW5/bank--additional-full.csv', sep = ";", na_values='unknown')
 
 print("Перші рядки даних:")
 print(df.head())
@@ -63,7 +65,10 @@ plot_tree(
     class_names=['no', 'yes'],  # Відповідає закодованим значенням
     filled=True
 )
-plt.savefig('ML_Fall2024\LW5\Results\Tree.png')
+results_dir = r'D:\Machine Learning Course\ML_Fall2024\LW5\Results'
+os.makedirs(results_dir, exist_ok=True)
+output_path = os.path.join(results_dir, 'Tree.png')
+plt.savefig(output_path)
 plt.close()
 
 
@@ -94,7 +99,10 @@ sns.heatmap(confusion_matrix(y_test, y_pred), annot=True, fmt='d', cmap='Blues',
 plt.xlabel("Predicted")
 plt.ylabel("Actual")
 plt.title("Confusion Matrix")
-plt.savefig('ML_Fall2024\LW5\Results\Confusion-Matrix.png')
+results_dir = r'D:\Machine Learning Course\ML_Fall2024\LW5\Results'
+os.makedirs(results_dir, exist_ok=True)
+output_path = os.path.join(results_dir, 'Confusion-Matrix.png')
+plt.savefig(output_path)
 plt.close()
 
 base_model = DecisionTreeClassifier(max_depth=3)
