@@ -9,7 +9,7 @@ from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier, Gradien
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import accuracy_score, f1_score, precision_score, classification_report, confusion_matrix, roc_auc_score
 import os
-print(os.getcwd())  # To check the current working directory
+print(os.getcwd()) 
 df = pd.read_csv('./bank--additional-full.csv', sep=";", na_values='unknown')
 
 
