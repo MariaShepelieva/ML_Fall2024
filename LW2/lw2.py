@@ -15,55 +15,40 @@ print(f'Info about the dataframe:\n{df.info()}')
 print(f'First five rows of the dataframe:\n{df.head()}')
 print(f'Shape of data:\n{df.shape}')
 
-df.replace({
-    'unknown': np.nan,
-    'nonexistent': np.nan,
-    999: np.nan
-}, inplace=True)
+label_encoder = LabelEncoder()
 
+# Перетворимо бінарні категоріальні ознаки 'default', 'housing', 'loan', 'y' у числові
+for col in ['default', 'housing', 'loan', 'y']:
+    df[col] = label_encoder.fit_transform(df[col])
 
-print(f'Number of missing values in columns:\n{df.isnull().sum()}')
-print(f'Total number of missing values:\n{df.isnull().sum().sum()}')
+# Закодуємо інші категоріальні ознаки за допомогою one-hot кодування
+df = pd.get_dummies(df, drop_first=True)
 
-
-df.dropna(inplace=True)
-df.drop_duplicates(inplace=True)
-print(f'Number of duplicated rows:\n{df.duplicated().value_counts()}')
-print(f'Info about the numerical columns:\n{df.describe()}')
-print(f'Info about categorical columns:\n{df.describe(include=["object"])}')
-
-
-scaler = StandardScaler()
-df[['duration', 'previous']] = scaler.fit_transform(df[['duration', 'previous']])
-
-label_enc = LabelEncoder()
-for col in df.select_dtypes(include=['object']).columns:
-    df[col] = label_enc.fit_transform(df[col])
-    print(f'{col} encoding classes: {label_enc.classes_}')
-
-print(df.head())
-
+# Відокремлюємо ознаки (X) та цільову змінну (y)
 X = df.drop(columns=['y'])
 y = df['y']
 
+# Розділимо дані на навчальну і тестову вибірки
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 
-X_train, X_temp, y_train, y_temp = train_test_split(X, y, test_size=0.4, random_state=42)
-X_dev, X_test, y_dev, y_test = train_test_split(X_temp, y_temp, test_size=0.5, random_state=42)
+# Стандартизуємо  ознаки
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
 
-
-def train_and_evaluate_model(model, X_train, y_train, X_dev, y_dev):
+def train_and_evaluate_model(model, X_train, y_train):
     model.fit(X_train, y_train)
-    y_dev_pred = model.predict(X_dev)
+    y_test_pred = model.predict(X_test)
     metrics = {}
     if isinstance(model, (LogisticRegression, RidgeClassifier)):
-        metrics['accuracy'] = accuracy_score(y_dev, y_dev_pred)
-        metrics['precision'] = precision_score(y_dev, y_dev_pred)
-        metrics['recall'] = recall_score(y_dev, y_dev_pred)
-        metrics['f1'] = f1_score(y_dev, y_dev_pred)
-        metrics['roc_auc'] = roc_auc_score(y_dev, y_dev_pred)
-        metrics['conf_matrix'] = confusion_matrix(y_dev, y_dev_pred)
+        metrics['accuracy'] = accuracy_score(y_test, y_test_pred)
+        metrics['precision'] = precision_score(y_test, y_test_pred)
+        metrics['recall'] = recall_score(y_test, y_test_pred)
+        metrics['f1'] = f1_score(y_test, y_test_pred)
+        metrics['roc_auc'] = roc_auc_score(y_test, y_test_pred)
+        metrics['conf_matrix'] = confusion_matrix(y_test, y_test_pred)
     else:
-        metrics['Mean Squared Error'] = mean_squared_error(y_dev, y_dev_pred)
+        metrics['Mean Squared Error'] = mean_squared_error(y_test, y_test_pred)
     return metrics
 
 models = {
@@ -110,7 +95,7 @@ for name, model in best_models.items():
 
 
 for name, model in best_models.items():
-    metrics = train_and_evaluate_model(model, X_train, y_train, X_dev, y_dev)
+    metrics = train_and_evaluate_model(model, X_train, y_train)
     print(f'Metrics for {name} on dev set:')
     for metric, value in metrics.items():
         if metric != 'conf_matrix':
