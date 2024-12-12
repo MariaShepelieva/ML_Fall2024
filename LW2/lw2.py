@@ -136,5 +136,30 @@ def plot_validation_curves(models, param_grid, X_train, y_train):
 plot_validation_curves(models, param_grid, X_train, y_train)
 
 
+# Retrieve the best Logistic Regression model
+best_model = best_models['Logistic Regression (Ridge)']
 
+# Get feature names and coefficients
+feature_names = X.columns
+coefficients = best_model.coef_.flatten()  # Flatten the 2D array into a 1D array
 
+# Create the DataFrame with feature names and coefficients
+coef_df = pd.DataFrame({'Feature': feature_names, 'Coefficient': coefficients})
+
+# Add absolute coefficient values for sorting
+coef_df['AbsCoefficient'] = np.abs(coef_df['Coefficient'])
+coef_df = coef_df.sort_values(by='AbsCoefficient', ascending=False)
+
+# Display the top coefficients
+print("Top features sorted by importance:")
+print(coef_df[['Feature', 'Coefficient']].head(20))
+
+# Visualize the top 20 coefficients
+top_20_coef = coef_df.head(20)
+plt.figure(figsize=(10, 6))
+plt.barh(top_20_coef['Feature'], top_20_coef['Coefficient'], color='b')
+plt.xlabel('Coefficient Value')
+plt.title('Top 20 Feature Importance Based on Coefficients')
+plt.gca().invert_yaxis()  # Invert the y-axis for better readability
+plt.grid(True)
+plt.show()
