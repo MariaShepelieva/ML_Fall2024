@@ -7,67 +7,34 @@ from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 from sklearn.model_selection import KFold
 from sklearn.model_selection import train_test_split, GridSearchCV, cross_val_score
 from sklearn.linear_model import LogisticRegression, RidgeClassifier, Lasso, ElasticNet
-from sklearn.metrics import  accuracy_score, mean_squared_error, make_scorer, accuracy_score
+from sklearn.metrics import  accuracy_score, mean_squared_error, make_scorer, accuracy_score, f1_score
 
-df = pd.read_csv('./bank--additional-full.csv', sep=';')
+df = pd.read_csv('LW3/bank--additional-full.csv', sep=';')
 
-print(f'Інформація про набір даних:\n{df.info()}')
-print(f'Перші 5 стрічок набору даних:\n{df.head()}')
-print(f'Форма подання даних:\n{df.shape}')
+df = df.drop(columns=['duration'])
 
-df.replace({
-    'unknown': np.nan,
-    'nonexistent': np.nan,
-    999: np.nan
-}, inplace=True)
+label_encoder = LabelEncoder()
 
+for col in ['default', 'housing', 'loan', 'y']:
+    df[col] = label_encoder.fit_transform(df[col])
 
-print(f'Число пропущених значень в колонках:\n{df.isnull().sum()}')
-print(f'Загальне число пропущених значень:\n{df.isnull().sum().sum()}')
+df = pd.get_dummies(df, drop_first=True)
 
-
-df.dropna(inplace=True)
-df.drop_duplicates(inplace=True)
-print(f'Кількість дублікатних стрічок:\n{df.duplicated().value_counts()}')
-print(f'Інформація про числові дані(колонки):\n{df.describe()}')
-print(f'Інформація про категоріальні дані (колонки):\n{df.describe(include=["object"])}')
-
-sns.countplot(data=df, x='y', palette='pink')
-plt.title("Розподіл значень цільової змінної (y)")
-plt.xlabel("Підписка на строковий депозит")
-plt.ylabel("Кількість клієнтів")
-plt.show()
-
-
-df['y'] = df['y'].map({'yes': 1, 'no': 0})
-
-
-categorical_columns = df.select_dtypes(include=['object']).columns
-df = pd.get_dummies(df, columns=categorical_columns, drop_first=True)
-
-scaler = StandardScaler()
-numerical_columns = df.select_dtypes(include=['int64', 'float64']).columns
-
-df[numerical_columns] = scaler.fit_transform(df[numerical_columns])
-
-
-X = df.drop('y', axis=1)
+X = df.drop(columns=['y'])
 y = df['y']
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-print(f'Розмір навчальної вибірки: X_train: {X_train.shape}, y_train: {y_train.shape}')
-print(f'Розмір тестової вибірки: X_test: {X_test.shape}, y_test: {y_test.shape}')
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 
-
-y = df['y'].astype(int)
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
 
 
 clf = KNeighborsClassifier(n_neighbors=5)
 clf.fit(X_train, y_train)
 y_pred_class = clf.predict(X_test)
 accuracy = accuracy_score(y_test, y_pred_class)
-print(f'Точність класифікаційної моделі (accuracy): {accuracy:.4f}')
+print(f'Точність класифікаційної моделі: {accuracy:.4f}')
 
 
 reg = KNeighborsRegressor(n_neighbors=5)
@@ -79,6 +46,13 @@ print(f'Середньоквадратична похибка регресійн
 
 kf = KFold(n_splits=5, shuffle=True, random_state=42)
 
+accuracy_scores = cross_val_score(clf, X, y, cv=kf, scoring='accuracy')
+print("Середня точність (accuracy) на крос-валідації:", np.mean(accuracy_scores))
+
+
+f1_scorer = make_scorer(f1_score)
+f1_scores = cross_val_score(clf, X, y, cv=kf, scoring=f1_scorer)
+print("Середній F1-score на крос-валідації:", np.mean(f1_scores))
 
 knn = KNeighborsClassifier()
 param_grid = {'n_neighbors': range(1, 51)}
@@ -105,8 +79,9 @@ plt.grid()
 plt.show()
 
 
-p_values = np.linspace(1, 10, 20)
+p_values = np.linspace(1, 10, 10)
 param_grid = {'n_neighbors': [best_k], 'p': p_values}
+
 knn = KNeighborsClassifier()
 grid_search_p = GridSearchCV(estimator=knn, param_grid=param_grid, cv=kf, scoring='accuracy')
 grid_search_p.fit(X, y)
@@ -139,16 +114,14 @@ print(f'Середня точність на крос-валідації: {cv_sc
 print(f'Стандартне відхилення точності: {cv_scores.std():.4f}')
 
 
+#Вибір метрики у методі knn
 
 p_values = np.linspace(1, 10, 20)
 mean_accuracies = []
 for p in p_values:
     
     knn_weighted = KNeighborsClassifier(n_neighbors=best_k, p=p, weights='distance')
-    
-    
     cv_scores = cross_val_score(knn_weighted, X, y, cv=5, scoring='accuracy')
-    
     
     mean_accuracy = cv_scores.mean()
     mean_accuracies.append(mean_accuracy)
@@ -167,6 +140,28 @@ plt.xlabel('Значення p')
 plt.ylabel('Середня точність на крос-валідації')
 plt.title('Середня точність для різних значень p в KNN')
 plt.grid()
+plt.show()
+
+#При необхідності перерахуйте якість за допомогою іншої метрики з списку.
+
+accuracy_scores = []
+
+for p in p_values:
+    knn = KNeighborsClassifier(n_neighbors=best_k, metric='minkowski', p=p, weights='distance')
+    scores = cross_val_score(knn, X, y, cv=3, scoring='accuracy', n_jobs=-1) # n_jobs=-1 - використовує всі ядра процесора для прискорення.
+    accuracy_scores.append(scores.mean())
+
+# Знаходимо p з найкращою точністю
+best_p = p_values[np.argmax(accuracy_scores)]
+best_accuracy = max(accuracy_scores)
+
+print("Найкраще значення p:", best_p)
+print("Найвища точність (accuracy):", best_accuracy)
+
+plt.plot(p_values, accuracy_scores, marker='o')
+plt.xlabel("Значення параметра p")
+plt.ylabel("Середня точність (accuracy) на крос-валідації")
+plt.title("Залежність точності від параметра p в метриці Мінковського")
 plt.show()
 
 
