@@ -7,51 +7,28 @@ from sklearn.model_selection import train_test_split, GridSearchCV, KFold, valid
 from sklearn.metrics import  accuracy_score, accuracy_score, classification_report
 from sklearn.tree import export_graphviz, DecisionTreeClassifier
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.preprocessing import StandardScaler, LabelEncoder
 import pydotplus
 
-df = pd.read_csv('D:/Machine Learning Course/ML_Fall2024/LW4/bank--additional-full.csv', sep=';')
+df = pd.read_csv('./bank--additional-full.csv', sep=';')
 
-print(f'Інформація про набір даних:\n{df.info()}')
-print(f'Перші 5 стрічок набору даних:\n{df.head()}')
-print(f'Форма подання даних:\n{df.shape}')
+df = df.drop(columns=['duration'])
 
-df.replace({
-    'unknown': np.nan,
-    'nonexistent': np.nan,
-    999: np.nan
-}, inplace=True)
+label_encoder = LabelEncoder()
 
+for col in ['default', 'housing', 'loan', 'y']:
+    df[col] = label_encoder.fit_transform(df[col])
 
-print(f'Число пропущених значень в колонках:\n{df.isnull().sum()}')
-print(f'Загальне число пропущених значень:\n{df.isnull().sum().sum()}')
+df = pd.get_dummies(df, drop_first=True)
 
+X = df.drop(columns=['y'])
+y = df['y']
 
-df.dropna(inplace=True)
-df.drop_duplicates(inplace=True)
-print(f'Кількість дублікатних стрічок:\n{df.duplicated().value_counts()}')
-print(f'Інформація про числові дані(колонки):\n{df.describe()}')
-print(f'Інформація про категоріальні дані (колонки):\n{df.describe(include=["object"])}')
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 
-sns.countplot(data=df, x='y', palette='pink')
-plt.title("Розподіл значень цільової змінної (y)")
-plt.xlabel("Підписка на строковий депозит")
-plt.ylabel("Кількість клієнтів")
-plt.grid()
-plt.savefig('D:/Machine Learning Course/ML_Fall2024/LW4/Results/target_y_distribution.png')
-plt.close()
-
-
-df['y'] = df['y'].map({'yes': 1, 'no': 0})
-
-categorical_columns = df.select_dtypes(include=['object']).columns
-df = pd.get_dummies(df, columns=categorical_columns, drop_first=True)
-
-X = df.drop('y', axis=1)
-y = df['y'].astype(int)
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-print(f'Розмір навчальної вибірки: X_train: {X_train.shape}, y_train: {y_train.shape}')
-print(f'Розмір тестової вибірки: X_test: {X_test.shape}, y_test: {y_test.shape}')
-
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
 
 classifier = DecisionTreeClassifier(
     min_samples_split = 5, 
