@@ -1,262 +1,170 @@
-import pandas as pd
 import numpy as np
-import seaborn as sns
+import pandas as pd
 import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split, validation_curve
-from sklearn.preprocessing import LabelEncoder, StandardScaler
-from sklearn.tree import plot_tree, DecisionTreeClassifier
-from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier, GradientBoostingClassifier
-from sklearn.preprocessing import LabelEncoder
-from sklearn.metrics import accuracy_score, f1_score, precision_score, classification_report, confusion_matrix, roc_auc_score
-import os
-print(os.getcwd()) 
-df = pd.read_csv('./bank--additional-full.csv', sep=";", na_values='unknown')
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import AdaBoostClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.model_selection import validation_curve
+from xgboost import XGBClassifier
+from lightgbm import LGBMClassifier
+from sklearn.model_selection import GridSearchCV
+import pandas as pd
+import matplotlib.pyplot as plt
 
 
-print("Перші рядки даних:")
-print(df.head())
-print("\nІнформація про датафрейм:")
-print(df.info())
-print("\nКількість пропущених значень у кожному стовпці:")
-print(df.isna().sum())
+file_path = './bank--additional-full.csv'
+data = pd.read_csv(file_path, delimiter=';')
 
-na_columns = ['job','marital','education','default','housing','loan']
-for col in na_columns:
-    df[col] = df[col].fillna(df[col].mode().values[0])
+# 1. Ознайомлення з даними та визначення цільової змінної
+target_column = 'y' 
+data[target_column] = data[target_column].map({'yes': 1, 'no': 0}) 
 
-print("\nКількість пропущених значень після обробки:")
-print(df.isna().sum())
+# 2. Попередня обробка даних
+categorical_columns = data.select_dtypes(include=['object']).columns
+data_encoded = pd.get_dummies(data, columns=categorical_columns, drop_first=True)
 
-# Статистичний опис даних
-print("\nСтатистичний опис числових стовпців:")
-print(df.describe())
+X = data_encoded.drop(columns=[target_column])
+y = data_encoded[target_column]
 
-
-
-q1 = df['age'].quantile(0.25)
-q3 = df['age'].quantile(0.75)
-iqr = q3-q1
-df = df[( df['age'] > q1 - 1.5 * iqr) & (df['age'] < q3+1.5 * iqr)]
-print(df)
-
-
-
-label_encoder = LabelEncoder()
-df['y'] = label_encoder.fit_transform(df['y'])
-for column in ['job', 'marital', 'education','default','housing','loan','contact','month','day_of_week','poutcome']:
-    df[column] = label_encoder.fit_transform(df[column])
-
-print(df.describe(include='all'))
-
-X = df.drop('y', axis=1)  
-y = df['y']
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-scaler = StandardScaler()
-X_train = scaler.fit_transform(X_train)
-X_test = scaler.transform(X_test)
 
-# Візуалізація дерева рішень
-model = DecisionTreeClassifier(max_depth=3)
-model.fit(X_train, y_train)
-plt.figure(figsize=(12, 8))
-plot_tree(
-    model,
-    feature_names=df.drop('y', axis=1).columns,
-    class_names=['no', 'yes'],  # Відповідає закодованим значенням
-    filled=True
-)
-results_dir = r'D:\Machine Learning Course\ML_Fall2024\LW5\Results'
-os.makedirs(results_dir, exist_ok=True)
-output_path = os.path.join(results_dir, 'Tree.png')
-plt.savefig(output_path)
-plt.close()
+# 3. Побудова ансамблевої моделі AdaBoost
 
+base_model = DecisionTreeClassifier(max_depth=1)
 
-def select_model(model, X_train, y_train, X_test, y_test):
-    model.fit(X_train, y_train)
-    y_pred = model.predict(X_test)
-    score = accuracy_score(y_test, y_pred)
-    f1 = f1_score(y_test, y_pred, average='weighted')
-    precision = precision_score(y_test, y_pred, average='weighted')
-    return model, y_pred, score, f1, precision
-
-
-
-# Оцінка моделі RandomForestClassifier
-rfc = RandomForestClassifier(n_estimators=100, random_state=42)  # Більше дерев для кращої узагальненості
-model_rfc, y_pred, score, f1, precision = select_model(rfc, X_train, y_train, X_test, y_test)
-
-print(f'Accuracy: {score:.2f}')
-print(f'F1 Score: {f1:.2f}')
-print(f'Precision: {precision:.2f}')
-
-print("\nClassification Report1:")
-print(classification_report(y_test, y_pred, target_names=['no', 'yes']))
-
-print("\nConfusion Matrix:")
-sns.heatmap(confusion_matrix(y_test, y_pred), annot=True, fmt='d', cmap='Blues', xticklabels=['no', 'yes'], yticklabels=['no', 'yes'])
-
-plt.xlabel("Predicted")
-plt.ylabel("Actual")
-plt.title("Confusion Matrix")
-results_dir = r'D:\Machine Learning Course\ML_Fall2024\LW5\Results'
-os.makedirs(results_dir, exist_ok=True)
-output_path = os.path.join(results_dir, 'Confusion-Matrix.png')
-plt.savefig(output_path)
-plt.close()
-
-base_model = DecisionTreeClassifier(max_depth=3)
-
-n_estimators_range = [10, 50, 100, 200, 300, 500]
-learning_rate_range = [0.01, 0.1, 0.5, 1, 1.5, 2]
-
-train_scores_n, test_scores_n = validation_curve(
-    AdaBoostClassifier(estimator=base_model, learning_rate=1, algorithm='SAMME', random_state=42),
-    X_train, y_train,
+# Вибірка гіперпараметрів
+param_range = np.arange(10, 500, 10)
+train_scores, test_scores = validation_curve(
+    AdaBoostClassifier(estimator=base_model, learning_rate=0.5, random_state=42),
+    X_train,
+    y_train,
     param_name="n_estimators",
-    param_range=n_estimators_range,
-    scoring="f1",
-    cv=5
+    param_range=param_range,
+    cv=5,
+    scoring="accuracy",
+    n_jobs=-1
 )
 
-train_scores_lr, test_scores_lr = validation_curve(
-    AdaBoostClassifier(estimator=base_model, n_estimators=100, algorithm='SAMME', random_state=42),
-    X_train, y_train,
-    param_name="learning_rate",
-    param_range=learning_rate_range,
-    scoring="f1",
-    cv=5
-)
+# Побудова валідаційної кривої
+train_mean = np.mean(train_scores, axis=1)
+test_mean = np.mean(test_scores, axis=1)
 
-def plot_validation_curve(param_range, train_scores, test_scores, param_name, title):
-    train_mean = np.mean(train_scores, axis=1)
-    train_std = np.std(train_scores, axis=1)
-    test_mean = np.mean(test_scores, axis=1)
-    test_std = np.std(test_scores, axis=1)
-
-    plt.figure(figsize=(10, 6))
-    plt.plot(param_range, train_mean, label="Training score", color="blue", marker="o")
-    plt.plot(param_range, test_mean, label="Cross-validation score", color="orange", marker="o")
-    plt.fill_between(param_range, train_mean - train_std, train_mean + train_std, alpha=0.2, color="blue")
-    plt.fill_between(param_range, test_mean - test_std, test_mean + test_std, alpha=0.2, color="orange")
-    plt.title(title)
-    plt.xlabel(param_name)
-    plt.ylabel("Accuracy")
-    plt.legend(loc="best")
-    plt.grid()
-    plt.show()
-
-plot_validation_curve(n_estimators_range, train_scores_n, test_scores_n, "n_estimators", "Validation Curve for AdaBoost (n_estimators)")
-plot_validation_curve(learning_rate_range, train_scores_lr, test_scores_lr, "learning_rate", "Validation Curve for AdaBoost (learning_rate)")
-
-''' Отримали графіки, які допомогли обрати найкращі значення для n_estimators: 200-300. learning_rate: 0.5.'''
-
-final_model = AdaBoostClassifier(estimator=DecisionTreeClassifier(max_depth=1), 
-                                 n_estimators=250, 
-                                 learning_rate=0.5, 
-                                 random_state=42)
-final_model.fit(X_train, y_train)
-y_test_pred = final_model.predict(X_test)
-print("\naaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-print(classification_report(y_test, y_test_pred, target_names=['no', 'yes']))
-print("\naaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-print("ROC-AUC:", roc_auc_score(y_test, final_model.predict_proba(X_test)[:, 1]))
-
-
-base_model = DecisionTreeClassifier(max_depth=1)  # Базова модель "неглибоке дерево рішень"
-
-n_estimators_range = [50, 100, 200, 300, 400]
-train_scores_n, test_scores_n = validation_curve(
-    GradientBoostingClassifier(learning_rate=0.1, random_state=42),
-    X_train, y_train,
-    param_name="n_estimators",
-    param_range=n_estimators_range,
-    scoring="f1",  
-)
-
-plt.figure(figsize=(10, 6))
-plt.plot(n_estimators_range, np.mean(train_scores_n, axis=1), label="Training F1-score", color="blue", marker="o")
-plt.plot(n_estimators_range, np.mean(test_scores_n, axis=1), label="Validation F1-score", color="orange", marker="o")
-plt.fill_between(
-    n_estimators_range,
-    np.mean(train_scores_n, axis=1) - np.std(train_scores_n, axis=1),
-    np.mean(train_scores_n, axis=1) + np.std(train_scores_n, axis=1),
-    alpha=0.2, color="blue"
-)
-plt.fill_between(
-    n_estimators_range,
-    np.mean(test_scores_n, axis=1) - np.std(test_scores_n, axis=1),
-    np.mean(test_scores_n, axis=1) + np.std(test_scores_n, axis=1),
-    alpha=0.2, color="orange"
-)
-plt.title("Validation Curve for n_estimators")
-plt.xlabel("n_estimators")
-plt.ylabel("F1-score")
+plt.figure()
+plt.plot(param_range, train_mean, label="Training Score")
+plt.plot(param_range, test_mean, label="Validation Score")
+plt.title("Validation Curve with AdaBoost")
+plt.xlabel("Number of Estimators")
+plt.ylabel("Accuracy")
 plt.legend(loc="best")
 plt.grid()
-output_dir = 'ML_Fall2024/LW5/Results'
-os.makedirs(output_dir, exist_ok=True)
-plt.savefig(os.path.join(output_dir, 'Validation Curve for n_estimator.png'))
-plt.close()
+plt.show()
 
-learning_rate_range = [0.01, 0.05, 0.1, 0.2, 0.3]
-train_scores_lr, test_scores_lr = validation_curve(
-    GradientBoostingClassifier(n_estimators=200, random_state=42),
-    X_train, y_train,
-    param_name="learning_rate",
-    param_range=learning_rate_range,
-    scoring="f1",
-    cv=5
+
+# 4. Побудова ансамблевої моделі GradientBoosting
+from sklearn.ensemble import GradientBoostingClassifier
+
+# Базова модель - неглибоке дерево рішень
+learning_rate = 0.1  # Фіксоване значення
+param_range = np.arange(10, 500, 10)
+
+# Валідаційна крива для GradientBoosting
+train_scores, test_scores = validation_curve(
+    GradientBoostingClassifier(max_depth=1, learning_rate=learning_rate, random_state=42),
+    X_train,
+    y_train,
+    param_name="n_estimators",
+    param_range=param_range,
+    cv=5,
+    scoring="accuracy",
+    n_jobs=-1
 )
 
-plt.figure(figsize=(10, 6))
-plt.plot(learning_rate_range, np.mean(train_scores_lr, axis=1), label="Training F1-score", color="blue", marker="o")
-plt.plot(learning_rate_range, np.mean(test_scores_lr, axis=1), label="Validation F1-score", color="orange", marker="o")
-plt.fill_between(
-    learning_rate_range,
-    np.mean(train_scores_lr, axis=1) - np.std(train_scores_lr, axis=1),
-    np.mean(train_scores_lr, axis=1) + np.std(train_scores_lr, axis=1),
-    alpha=0.2, color="blue"
-)
-plt.fill_between(
-    learning_rate_range,
-    np.mean(test_scores_lr, axis=1) - np.std(test_scores_lr, axis=1),
-    np.mean(test_scores_lr, axis=1) + np.std(test_scores_lr, axis=1),
-    alpha=0.2, color="orange"
-)
-plt.title("Validation Curve for learning_rate")
-plt.xlabel("learning_rate")
-plt.ylabel("F1-score")
+# Побудова валідаційної кривої
+train_mean = np.mean(train_scores, axis=1)
+test_mean = np.mean(test_scores, axis=1)
+
+plt.figure()
+plt.plot(param_range, train_mean, label="Training Score")
+plt.plot(param_range, test_mean, label="Validation Score")
+plt.title("Validation Curve with GradientBoosting")
+plt.xlabel("Number of Estimators")
+plt.ylabel("Accuracy")
 plt.legend(loc="best")
 plt.grid()
-plt.savefig('ML_Fall2024\LW5\Results\Validation-Curve-for-learning_rate.png')
-plt.close()
+plt.show()
 
 
-best_n_estimators = 200
-best_learning_rate = 0.1
+# 5. Побудова моделі XGBoost та LightGBM з оптимізацією
 
+# Побудова моделі XGBoost
+xgb_model = XGBClassifier(eval_metric='logloss', random_state=42)
 
-final_model = GradientBoostingClassifier(
-    n_estimators=best_n_estimators,
-    learning_rate=best_learning_rate,
-    max_depth=1, 
+# Підбір гіперпараметрів для XGBoost
+xgb_param_grid = {
+    'n_estimators': [50, 100, 150],
+    'learning_rate': [0.1, 0.05, 0.01],
+    'max_depth': [1, 3, 5]
+}
+
+xgb_grid_search = GridSearchCV(
+    estimator=xgb_model, param_grid=xgb_param_grid, scoring='accuracy', cv=5, n_jobs=-1
+)
+xgb_grid_search.fit(X_train, y_train)
+
+# Найкращі параметри для XGBoost
+xgb_best_model = xgb_grid_search.best_estimator_
+print("Найкращі параметри для XGBoost:", xgb_grid_search.best_params_)
+print("Точність на валідаційних даних (XGBoost):", xgb_grid_search.best_score_)
+
+# Побудова моделі LightGBM з оптимізованими параметрами
+lgbm_model = LGBMClassifier(
+    force_row_wise=True, 
+    min_data_in_leaf=50,  
+    min_split_gain=0.2,   
+    num_leaves=15,       
     random_state=42
 )
-final_model.fit(X_train, y_train)
 
-y_pred = final_model.predict(X_test)
 
-print("\nbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
-print("\nClassification Report2:")
-print("\nbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
-print(classification_report(y_test, y_pred, target_names=['no', 'yes']))
-print("ROC-AUC:", roc_auc_score(y_test, final_model.predict_proba(X_test)[:, 1]))
+# Підбір гіперпараметрів для LightGBM
+lgbm_param_grid = {
+    'n_estimators': [50, 100, 150],
+    'learning_rate': [0.1, 0.05, 0.01],
+    'max_depth': [1, 3, 5]
+}
 
-print("\nConfusion Matrix:")
-sns.heatmap(confusion_matrix(y_test, y_pred), annot=True, fmt='d', cmap='Blues', xticklabels=['no', 'yes'], yticklabels=['no', 'yes'])
-plt.xlabel("Predicted")
-plt.ylabel("Actual")
-plt.title("Confusion Matrix")
-plt.savefig('ML_Fall2024\LW5\Results\Confusion Matrix.png')
-plt.close()
+lgbm_grid_search = GridSearchCV(
+    estimator=lgbm_model, param_grid=lgbm_param_grid, scoring='accuracy', cv=5, n_jobs=-1
+)
+lgbm_grid_search.fit(X_train, y_train)
+
+# Найкращі параметри для LightGBM
+lgbm_best_model = lgbm_grid_search.best_estimator_
+print("Найкращі параметри для LightGBM:", lgbm_grid_search.best_params_)
+print("Точність на валідаційних даних (LightGBM):", lgbm_grid_search.best_score_)
+
+# Аналіз топ-10 ознак для XGBoost
+importances_xgb = pd.Series(xgb_best_model.feature_importances_, index=X_train.columns)
+top_10_xgb = importances_xgb.nlargest(10)
+
+# Побудова графіка для XGBoost
+plt.figure(figsize=(10, 6))
+top_10_xgb.plot(kind='barh', color='skyblue')
+plt.title("Top 10 Feature Importance (XGBoost)")
+plt.xlabel("Importance")
+plt.ylabel("Features")
+plt.gca().invert_yaxis()
+plt.show()
+
+# Аналіз топ-10 ознак для LightGBM
+importances_lgbm = pd.Series(lgbm_best_model.feature_importances_, index=X_train.columns)
+top_10_lgbm = importances_lgbm.nlargest(10)
+
+# Побудова графіка для LightGBM
+plt.figure(figsize=(10, 6))
+top_10_lgbm.plot(kind='barh', color='lightgreen')
+plt.title("Top 10 Feature Importance (LightGBM)")
+plt.xlabel("Importance")
+plt.ylabel("Features")
+plt.gca().invert_yaxis()
+plt.show()
