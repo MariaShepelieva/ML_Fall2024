@@ -11,7 +11,6 @@ import os
 print(os.getcwd())
 df = pd.read_csv('./bank--additional-full.csv', sep=';', na_values = 'unknown')
 
-print(f'Info about the dataframe:\n{df.info()}')
 print(f'First five rows of the dataframe:\n{df.head()}')
 print(f'Shape of data:\n{df.shape}')
 
@@ -28,10 +27,8 @@ df = pd.get_dummies(df, drop_first=True)
 X = df.drop(columns=['y'])
 y = df['y']
 
-# Розділимо дані на навчальну і тестову вибірки
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 
-# Стандартизуємо  ознаки
 scaler = StandardScaler()
 X_train = scaler.fit_transform(X_train)
 X_test = scaler.transform(X_test)
