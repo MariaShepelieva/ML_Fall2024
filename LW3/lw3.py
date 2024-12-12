@@ -9,7 +9,7 @@ from sklearn.model_selection import train_test_split, GridSearchCV, cross_val_sc
 from sklearn.linear_model import LogisticRegression, RidgeClassifier, Lasso, ElasticNet
 from sklearn.metrics import  accuracy_score, mean_squared_error, make_scorer, accuracy_score
 
-df = pd.read_csv('D:/Machine Learning Course/ML_Fall2024/LW3/bank--additional-full.csv', sep=';')
+df = pd.read_csv('./bank--additional-full.csv', sep=';')
 
 print(f'Інформація про набір даних:\n{df.info()}')
 print(f'Перші 5 стрічок набору даних:\n{df.head()}')
